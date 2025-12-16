@@ -5,7 +5,14 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-app.use(cors());
+
+// Adicionando CORS para permitir o header personalizado
+app.use(cors({
+    origin: '*', // Permite qualquer origem
+    methods: ['GET', 'POST', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'x-admin-senha']
+}));
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
@@ -17,8 +24,9 @@ if (!fs.existsSync(DB_FILE)) { fs.writeFileSync(DB_FILE, JSON.stringify([])); }
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
+// Middleware para verificar a senha
 const verificarSenha = (req, res, next) => {
-    const senhaRecebida = req.headers['x-admin-senha'];
+    const senhaRecebida = (req.headers['x-admin-senha'] || '').trim();  // Adicionando o .trim() para evitar problemas com espaços extras
     if (senhaRecebida === SENHA_SECRETA) next(); 
     else res.status(401).json({ error: 'Senha incorreta.' });
 };
@@ -60,11 +68,10 @@ app.get('/scrape', async (req, res) => {
         browser = await puppeteer.launch({
             headless: "new", 
             args: [
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
-  '--disable-dev-shm-usage'
-]
-
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage'
+            ]
         });
 
         const page = await browser.newPage();
@@ -163,6 +170,7 @@ app.delete('/products/:id', verificarSenha, (req, res) => {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
     res.json({ success: true });
 });
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => console.log(`Servidor V10 (Popularidade) rodando na porta ${PORT}`));
